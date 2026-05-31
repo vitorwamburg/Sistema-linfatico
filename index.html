@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Interativo Moderno - Sistema Linfático (Avançado)</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* ========================
+           🎨 DESIGN & TIPOGRAFIA
+           ======================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: #0B0B0B;
+            color: #F5F5F5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+        }
+
+        .card {
+            background-color: #161616;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            transition: opacity 0.3s ease;
+        }
+
+        h1, h2 {
+            margin-bottom: 24px;
+            text-align: center;
+            font-weight: 800;
+        }
+
+        .question-counter {
+            font-size: 0.9rem;
+            color: #888;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background-color: #222;
+            color: #F5F5F5;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 1rem;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background-color: #2A2A2A;
+            border-color: #555;
+            transform: translateY(-2px);
+        }
+
+        .option-btn.correct {
+            background-color: #1b5e20 !important;
+            border-color: #4caf50 !important;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
+            color: #fff;
+        }
+
+        .option-btn.wrong {
+            background-color: #b71c1c !important;
+            border-color: #f44336 !important;
+            box-shadow: 0 0 15px rgba(244, 67, 54, 0.4);
+            color: #fff;
+        }
+
+        .option-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* ========================
+           🧩 MODAL / POPUP
+           ======================== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background-color: #161616;
+            padding: 32px;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            font-weight: 800;
+        }
+
+        .text-success { color: #4caf50; }
+        .text-danger { color: #f44336; }
+
+        .modal-feedback {
+            margin-bottom: 24px;
+            line-height: 1.5;
+            color: #CCC;
+        }
+
+        .modal-explanation {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #333;
+            font-size: 0.9rem;
+            color: #AAA;
+            text-align: left;
+        }
+
+        .btn-primary {
+            background-color: #F5F5F5;
+            color: #0B0B0B;
+            border: none;
+            padding: 14px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .btn-primary:hover {
+            background-color: #DDD;
+            transform: translateY(-2px);
+        }
+
+        .screen { display: none; }
+        .screen.active { display: block; animation: fadeIn 0.4s ease; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <div id="quiz-screen" class="card screen active">
+            <div class="question-counter" id="question-counter">Questão 1</div>
+            <h2 id="question-text">Carregando pergunta...</h2>
+            <div class="options-grid" id="options-container"></div>
+        </div>
+
+        <div id="result-screen" class="card screen">
+            <h2>🎉 Quiz Finalizado!</h2>
+            <p style="text-align: center; font-size: 1.2rem; margin-bottom: 10px;">Sua pontuação:</p>
+            <h1 id="score-text" style="font-size: 3rem; color: #4caf50;">0/0</h1>
+            <p id="score-feedback" style="text-align: center; color: #888; margin-bottom: 32px;">Excelente trabalho!</p>
+            <button class="btn-primary" onclick="restartQuiz()">Jogar Novamente</button>
+        </div>
+    </div>
+
+    <div id="feedback-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title" class="modal-title">Resultado</h3>
+            <p id="modal-feedback" class="modal-feedback">A resposta correta era...</p>
+            <div id="modal-explanation" class="modal-explanation">Explicação aqui...</div>
+            <button class="btn-primary" id="next-btn" onclick="nextQuestion()">Próxima Questão</button>
+        </div>
+    </div>
+
+    <script>
+        /* ========================
+           🧠 BANCO DE QUESTÕES
+           ======================== */
+        const perguntas = [
+            {
+                pergunta: "A eficiência dos capilares linfáticos na absorção de líquido intersticial está diretamente relacionada a qual característica estrutural?",
+                opcoes: [
+                    "Alta pressão hidrostática interna",
+                    "Início em fundo cego com junções celulares frouxas",
+                    "Presença de endotélio contínuo espesso",
+                    "Camada muscular desenvolvida",
+                    "Conexão direta com arteríolas"
+                ],
+                correta: 1,
+                explicacao: "Os capilares linfáticos são estruturalmente adaptados para drenagem eficiente: possuem extremidades em fundo cego e células endoteliais sobrepostas que funcionam como 'válvulas unidirecionais dependentes de pressão'. Quando a pressão intersticial aumenta, essas sobreposições se afastam, permitindo entrada de fluido, proteínas plasmáticas e até células imunes. Esse mecanismo é essencial porque proteínas não retornam facilmente ao sistema venoso — se acumulassem, aumentariam a pressão oncótica intersticial, perpetuando edema. Clinicamente, falhas nesse sistema levam ao linfedema crônico."
+            },
+            {
+                pergunta: "A movimentação da linfa ao longo dos vasos linfáticos depende principalmente de:",
+                opcoes: [
+                    "Pressão arterial sistêmica",
+                    "Difusão simples",
+                    "Contração cardíaca direta",
+                    "Contrações musculares e presença de válvulas",
+                    "Gradiente osmótico constante"
+                ],
+                correta: 3,
+                explicacao: "O fluxo linfático ocorre em um sistema de baixa pressão e sem bomba central. A propulsão depende de forças externas (contrações musculares, movimentos respiratórios e pulsação arterial adjacente) associadas a válvulas que impedem refluxo. Esse modelo explica por que a estase linfática ocorre em imobilidade prolongada e por que exercícios físicos ajudam na drenagem linfática. É um sistema altamente dependente da mecânica corporal."
+            },
+            {
+                pergunta: "A principal diferença funcional entre linfonodos e baço é que:",
+                opcoes: [
+                    "Ambos filtram exclusivamente linfa",
+                    "Linfonodos filtram sangue e o baço filtra linfa",
+                    "O baço não participa da resposta imune",
+                    "Ambos atuam apenas na produção de linfócitos",
+                    "Linfonodos filtram linfa e o baço filtra sangue"
+                ],
+                correta: 4,
+                explicacao: "Essa distinção é central para entender a vigilância imunológica. Linfonodos monitoram a linfa (conteúdo dos tecidos), enquanto o baço monitora o sangue (conteúdo sistêmico). Isso cria dois eixos de defesa: periférico (linfa) e sistêmico (sangue). A ausência do baço, por exemplo, aumenta o risco de infecções hematogênicas graves, especialmente por bactérias encapsuladas."
+            },
+            {
+                pergunta: "A organização estrutural do linfonodo favorece a resposta imune porque:",
+                opcoes: [
+                    "Reduz contato celular",
+                    "Impede circulação de linfócitos",
+                    "Mistura todos os tipos celulares uniformemente",
+                    "Separa regiões ricas em linfócitos B e T",
+                    "Elimina necessidade de antígenos"
+                ],
+                correta: 3,
+                explicacao: "A compartimentalização do linfonodo (córtex B-dependente e paracórtex T-dependente) aumenta a eficiência da resposta imune ao organizar interações celulares. Antígenos são apresentados em locais específicos, e linfócitos circulantes entram por vênulas especializadas (HEVs), sendo direcionados para áreas funcionais adequadas. Essa arquitetura reduz 'ruído biológico' e aumenta a precisão da ativação imune."
+            },
+            {
+                pergunta: "A resposta imune humoral é considerada altamente específica porque:",
+                opcoes: [
+                    "Atua apenas no meio intracelular",
+                    "Independe de reconhecimento antigênico",
+                    "Atua apenas em vírus",
+                    "Envolve produção de anticorpos específicos para antígenos",
+                    "Depende da ação de macrófagos"
+                ],
+                correta: 3,
+                explicacao: "A especificidade da resposta humoral decorre da diversidade dos receptores dos linfócitos B (BCR). Cada linfócito reconhece um epítopo específico. Após ativação (geralmente com auxílio de linfócitos T helper), ocorre expansão clonal e produção de anticorpos com alta afinidade. Esse processo é a base da memória imunológica e da eficácia das vacinas."
+            },
+            {
+                pergunta: "A função da barreira hemato-tímica é essencial para:",
+                opcoes: [
+                    "Produzir anticorpos",
+                    "Filtrar a linfa",
+                    "Garantir seleção adequada de linfócitos T",
+                    "Promover resposta inflamatória",
+                    "Aumentar exposição a antígenos"
+                ],
+                correta: 2,
+                explicacao: "A barreira hemato-tímica impede que antígenos circulantes entrem em contato com linfócitos T imaturos durante seu desenvolvimento. Isso é crucial para o processo de seleção positiva e negativa, que elimina células autorreativas. Se esse mecanismo falhar, há risco de desenvolvimento de doenças autoimunes."
+            },
+            {
+                pergunta: "A presença de vênulas de endotélio alto no paracórtex indica que essa região:",
+                opcoes: [
+                    "Permite migração ativa de linfócitos do sangue",
+                    "Armazena lipídios",
+                    "Produz anticorpos",
+                    "Atua na filtragem mecânica",
+                    "É rica em hemácias"
+                ],
+                correta: 0,
+                explicacao: "As HEVs possuem endotélio especializado que expressa moléculas de adesão, permitindo que linfócitos saiam da circulação sanguínea por extravasamento seletivo. Esse processo é essencial para a recirculação linfocitária e garante que linfócitos 'patrulhem' diferentes linfonodos em busca de antígenos."
+            },
+            {
+                pergunta: "No baço, a bainha linfocitária periarterial (PALS) está associada principalmente a:",
+                opcoes: [
+                    "Eritrócitos",
+                    "Linfócitos B",
+                    "Linfócitos T",
+                    "Neutrófilos",
+                    "Macrófagos"
+                ],
+                correta: 2,
+                explicacao: "A PALS é uma região da polpa branca organizada ao redor de arteríolas e rica em linfócitos T. Essa disposição facilita a interação entre antígenos circulantes e células T. Os linfócitos B, por sua vez, concentram-se nos folículos adjacentes, reforçando a organização funcional do órgão."
+            },
+            {
+                pergunta: "A polpa vermelha do baço contribui para homeostase sanguínea porque:",
+                opcoes: [
+                    "Produz anticorpos",
+                    "Remove hemácias envelhecidas",
+                    "Produz linfócitos T",
+                    "Filtra linfa",
+                    "Realiza hematopoiese contínua"
+                ],
+                correta: 1,
+                explicacao: "A polpa vermelha atua como um filtro mecânico e funcional. Hemácias envelhecidas ou menos deformáveis ficam retidas nos cordões esplênicos e são fagocitadas por macrófagos. Esse processo (hemocaterese) é essencial para reciclagem de ferro e manutenção da qualidade do sangue."
+            },
+            {
+                pergunta: "O MALT é estrategicamente importante porque:",
+                opcoes: [
+                    "Atua em regiões de contato com o meio externo",
+                    "Produz apenas linfócitos T",
+                    "Está localizado em áreas protegidas",
+                    "Atua apenas em órgãos internos",
+                    "Substitui linfonodos"
+                ],
+                correta: 0,
+                explicacao: "O MALT está presente em mucosas expostas ao ambiente (trato respiratório, gastrointestinal e urogenital). Ele funciona como uma linha de defesa inicial, interceptando patógenos antes que atinjam a circulação sistêmica. Sua ativação rápida é essencial para imunidade local."
+            },
+            {
+                pergunta: "A regressão do timo com a idade está relacionada principalmente a:",
+                opcoes: [
+                    "Produção aumentada de linfócitos",
+                    "Crescimento contínuo",
+                    "Substituição por tecido adiposo",
+                    "Calcificação óssea",
+                    "Aumento da atividade imune"
+                ],
+                correta: 2,
+                explicacao: "A involução tímica reduz a produção de novos linfócitos T naïve. Com o envelhecimento, o sistema imune passa a depender mais de células de memória, o que reduz a capacidade de responder a novos antígenos — fenômeno conhecido como imunossenescência."
+            },
+            {
+                pergunta: "A função das células apresentadoras de antígeno (APCs) depende da capacidade de:",
+                opcoes: [
+                    "Produzir hormônios",
+                    "Filtrar linfa",
+                    "Destruir hemácias",
+                    "Englobar e expor antígenos via MHC",
+                    "Produzir anticorpos"
+                ],
+                correta: 3,
+                explicacao: "As APCs conectam imunidade inata e adaptativa. Elas fagocitam patógenos, processam seus antígenos e os apresentam via MHC para linfócitos T. Sem esse processo, não há ativação eficiente da resposta adaptativa."
+            },
+            {
+                pergunta: "A diferença entre tecido linfóide denso nodular e difuso está em:",
+                opcoes: [
+                    "Tipo de linfócito",
+                    "Função imunológica",
+                    "Organização estrutural",
+                    "Presença de cápsula",
+                    "Presença de sangue"
+                ],
+                correta: 2,
+                explicacao: "O tecido nodular possui organização em folículos, muitas vezes com centros germinativos ativos, enquanto o tecido difuso é menos organizado. Essa diferença reflete níveis distintos de ativação e especialização da resposta imune."
+            },
+            {
+                pergunta: "Os linfonodos são considerados locais ideais para ativação imune porque:",
+                opcoes: [
+                    "Não possuem antígenos",
+                    "Possuem fluxo rápido de linfa",
+                    "Reduzem velocidade da linfa",
+                    "Impedem contato celular",
+                    "Eliminam linfócitos"
+                ],
+                correta: 2,
+                explicacao: "A redução do fluxo linfático dentro dos linfonodos aumenta o tempo de interação entre antígenos, células apresentadoras e linfócitos. Isso favorece o reconhecimento antigênico e a ativação da resposta imune adaptativa."
+            },
+            {
+                pergunta: "A zona marginal do baço é funcionalmente importante porque:",
+                opcoes: [
+                    "Produz hemácias",
+                    "Impede contato com sangue",
+                    "Armazena gordura",
+                    "É local inicial de reconhecimento antigênico",
+                    "Separa completamente polpas"
+                ],
+                correta: 3,
+                explicacao: "A zona marginal é uma região estratégica entre polpa branca e vermelha, rica em macrófagos e células dendríticas. Ela é um dos primeiros locais onde antígenos presentes no sangue são reconhecidos, iniciando rapidamente a resposta imune."
+            },
+            {
+                pergunta: "🔥 O aumento da pressão intersticial favorece a entrada de fluido nos capilares linfáticos porque:",
+                opcoes: [
+                    "Diminui a permeabilidade vascular",
+                    "Fecha as junções endoteliais",
+                    "Abre as sobreposições endoteliais",
+                    "Aumenta a pressão interna da linfa",
+                    "Reduz a absorção de proteínas"
+                ],
+                correta: 2,
+                explicacao: "Os capilares linfáticos possuem células endoteliais sobrepostas que funcionam como válvulas passivas. Quando a pressão do líquido intersticial aumenta (como em inflamação ou retenção de líquido), essas junções se abrem mecanicamente, permitindo a entrada de fluido, proteínas e até células. Esse mecanismo é essencial para evitar edema persistente e também para transportar antígenos até os órgãos linfóides, conectando drenagem e resposta imune."
+            },
+            {
+                pergunta: "🔥 Um paciente imobilizado por longos períodos tende a desenvolver edema porque:",
+                opcoes: [
+                    "Aumenta a pressão arterial",
+                    "Diminui produção de linfa",
+                    "Reduz o bombeamento linfático dependente de movimento",
+                    "Aumenta a filtração renal",
+                    "Estimula vasoconstrição"
+                ],
+                correta: 2,
+                explicacao: "O sistema linfático não possui bomba própria, então depende de fatores externos como contração muscular e movimentos respiratórios. Em pacientes imobilizados, esse 'bombeamento mecânico' diminui, reduzindo o retorno da linfa. Como a filtração capilar continua ocorrendo normalmente, o líquido se acumula no interstício, levando ao edema — um quadro clássico em pacientes acamados."
+            },
+            {
+                pergunta: "A ausência de válvulas nos vasos linfáticos resultaria principalmente em:",
+                opcoes: [
+                    "Aumento da pressão arterial",
+                    "Refluxo da linfa",
+                    "Produção excessiva de linfócitos",
+                    "Filtração ineficiente do sangue",
+                    "Redução da resposta imune"
+                ],
+                correta: 1,
+                explicacao: "As válvulas dos vasos linfáticos são fundamentais para manter o fluxo unidirecional, especialmente porque a pressão no sistema é baixa. Sem essas válvulas, a linfa poderia retornar em sentido contrário, comprometendo a drenagem e favorecendo acúmulo de líquido nos tecidos, além de prejudicar o transporte de células imunológicas."
+            },
+            {
+                pergunta: "🔥 A remoção de um grupo de linfonodos pode causar edema local porque:",
+                opcoes: [
+                    "Aumenta a pressão arterial",
+                    "Diminui produção de anticorpos",
+                    "Interrompe vias de drenagem linfática",
+                    "Reduz atividade do baço",
+                    "Aumenta hematopoiese"
+                ],
+                correta: 2,
+                explicacao: "Os linfonodos não são apenas filtros, mas também fazem parte da via física de drenagem da linfa. Quando removidos (por exemplo, em cirurgias de câncer), a continuidade do fluxo linfático é prejudicada. Isso leva ao acúmulo de linfa rica em proteínas no interstício, resultando em linfedema — condição crônica e de difícil manejo."
+            },
+            {
+                pergunta: "A principal função imunológica do baço está relacionada à:",
+                opcoes: [
+                    "Linfa proveniente dos tecidos",
+                    "Filtração de sangue",
+                    "Produção de hormônios",
+                    "Transporte de lipídios",
+                    "Ventilação pulmonar"
+                ],
+                correta: 1,
+                explicacao: "O baço atua como um filtro sanguíneo, monitorando diretamente o sangue em busca de patógenos, células defeituosas ou envelhecidas. Isso o diferencia dos linfonodos, que filtram linfa. Essa função é crucial para resposta imune sistêmica, especialmente contra infecções disseminadas pela corrente sanguínea."
+            },
+            {
+                pergunta: "🔥 Um defeito na apresentação de antígenos via MHC afetaria diretamente:",
+                opcoes: [
+                    "Produção de hemácias",
+                    "Ativação de linfócitos T",
+                    "Filtração da linfa",
+                    "Movimento da linfa",
+                    "Produção de plasma"
+                ],
+                correta: 1,
+                explicacao: "A apresentação de antígenos via MHC é indispensável para ativação dos linfócitos T. Sem esse processo, mesmo que o antígeno esteja presente, o sistema imune adaptativo não consegue reconhecê-lo. Isso compromete tanto a resposta celular quanto a coordenação da resposta humoral, prejudicando toda a defesa específica."
+            },
+            {
+                pergunta: "A função das tonsilas está relacionada principalmente a:",
+                opcoes: [
+                    "Filtrar sangue",
+                    "Produzir hemácias",
+                    "Defesa imunológica nas mucosas",
+                    "Transporte de linfa",
+                    "Produção hormonal"
+                ],
+                correta: 2,
+                explicacao: "As tonsilas fazem parte do MALT e estão estrategicamente posicionadas em regiões de entrada de ar e alimento. Elas capturam patógenos e iniciam respostas imunológicas locais, funcionando como uma primeira barreira de defesa antes da disseminação sistêmica."
+            },
+            {
+                pergunta: "🔥 A maior eficiência do sistema linfático em remover proteínas do interstício ocorre porque:",
+                opcoes: [
+                    "Possui alta pressão interna",
+                    "Tem capilares fechados",
+                    "Permite passagem de macromoléculas",
+                    "Possui hemoglobina",
+                    "Atua por transporte ativo"
+                ],
+                correta: 2,
+                explicacao: "Os capilares linfáticos são altamente permeáveis, permitindo a entrada de proteínas e outras macromoléculas que não retornam facilmente aos capilares sanguíneos. Isso é essencial para manter o equilíbrio osmótico do interstício, prevenindo o acúmulo progressivo de líquido (edema proteico)."
+            },
+            {
+                pergunta: "A circulação linfática retorna ao sistema venoso principalmente através de:",
+                opcoes: [
+                    "Artérias pulmonares",
+                    "Veias cavas",
+                    "Ductos linfáticos",
+                    "Capilares arteriais",
+                    "Veias coronárias"
+                ],
+                correta: 2,
+                explicacao: "A linfa retorna à circulação venosa por meio dos ductos linfáticos (especialmente o ducto torácico), que desembocam nas veias subclávias. Esse retorno fecha o ciclo de circulação de fluidos, equilibrando a filtração capilar com a drenagem linfática."
+            },
+            {
+                pergunta: "🔥 A ausência do baço compromete mais diretamente:",
+                opcoes: [
+                    "Ventilação pulmonar",
+                    "Resposta contra patógenos no sangue",
+                    "Produção de urina",
+                    "Digestão de lipídios",
+                    "Contração muscular"
+                ],
+                correta: 1,
+                explicacao: "Sem o baço, o organismo perde eficiência na remoção de microrganismos circulantes e hemácias defeituosas. Isso aumenta significativamente o risco de infecções graves, especialmente por bactérias encapsuladas, além de afetar a qualidade do sangue."
+            },
+            {
+                pergunta: "A função das placas de Peyer está associada a:",
+                opcoes: [
+                    "Sistema respiratório",
+                    "Sistema cardiovascular",
+                    "Imunidade intestinal",
+                    "Sistema urinário",
+                    "Sistema endócrino"
+                ],
+                correta: 2,
+                explicacao: "As placas de Peyer são agregados de tecido linfóide no intestino delgado e fazem parte do MALT. Elas monitoram antígenos provenientes da alimentação e da microbiota, sendo essenciais na defesa intestinal e na regulação da resposta imune local."
+            },
+            {
+                pergunta: "🔥 A linfa se movimenta contra a gravidade principalmente devido a:",
+                opcoes: [
+                    "Pressão arterial",
+                    "Contrações musculares e válvulas",
+                    "Difusão simples",
+                    "Ação hormonal",
+                    "Osmose"
+                ],
+                correta: 1,
+                explicacao: "O deslocamento da linfa depende da ação combinada de válvulas (que impedem refluxo) e compressões externas, principalmente musculares. Esse mecanismo é essencial para o retorno linfático, especialmente nos membros inferiores, onde atua contra a gravidade."
+            },
+            {
+                pergunta: "A ativação de linfócitos B ocorre principalmente em:",
+                opcoes: [
+                    "Medula óssea",
+                    "Paracórtex",
+                    "Folículos linfóides",
+                    "Baço vermelho",
+                    "Timo"
+                ],
+                correta: 2,
+                explicacao: "Os linfócitos B são ativados nos folículos linfóides do córtex dos linfonodos. Após ativação, eles proliferam e se diferenciam em plasmócitos (produtores de anticorpos) e células de memória, fundamentais para resposta imune duradoura."
+            },
+            {
+                pergunta: "🔥 O acúmulo de líquido rico em proteínas no interstício indica falha em:",
+                opcoes: [
+                    "Sistema nervoso",
+                    "Sistema linfático",
+                    "Sistema digestório",
+                    "Sistema endócrino",
+                    "Sistema muscular"
+                ],
+                correta: 1,
+                explicacao: "O sistema linfático é o principal responsável por remover proteínas do interstício. Quando ele falha, essas proteínas permanecem no tecido, aumentando a pressão oncótica local e agravando o edema — formando um ciclo de retenção progressiva de líquido."
+            },
+            {
+                pergunta: "🔥 A principal vantagem da organização do sistema linfático em relação ao sistema sanguíneo é:",
+                opcoes: [
+                    "Alta pressão",
+                    "Fluxo contínuo",
+                    "Capacidade de absorver grandes moléculas",
+                    "Transporte rápido",
+                    "Independência de válvulas"
+                ],
+                correta: 2,
+                explicacao: "O sistema linfático consegue absorver partículas grandes, como proteínas, lipídios (quilomícrons) e até células, algo que os capilares sanguíneos não fazem eficientemente. Isso o torna essencial para equilíbrio de fluidos, transporte de gorduras e vigilância imunológica."
+            }
+        ];
+
+        /* ========================
+           💻 LÓGICA E ESTADO
+           ======================== */
+        let currentQuestionIndex = 0;
+        let score = 0;
+
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const questionCounter = document.getElementById('question-counter');
+        
+        const feedbackModal = document.getElementById('feedback-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalFeedback = document.getElementById('modal-feedback');
+        const modalExplanation = document.getElementById('modal-explanation');
+
+        const letras = ["A)", "B)", "C)", "D)", "E)"];
+
+        function initQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            quizScreen.classList.add('active');
+            resultScreen.classList.remove('active');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            const currentQuestion = perguntas[currentQuestionIndex];
+            
+            questionText.textContent = currentQuestion.pergunta;
+            questionCounter.textContent = `Questão ${currentQuestionIndex + 1} de ${perguntas.length}`;
+            optionsContainer.innerHTML = '';
+
+            currentQuestion.opcoes.forEach((optionText, index) => {
+                const button = document.createElement('button');
+                button.className = 'option-btn';
+                button.textContent = `${letras[index]} ${optionText}`;
+                button.onclick = () => handleAnswer(button, index);
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function handleAnswer(selectedButton, selectedIndex) {
+            const currentQuestion = perguntas[currentQuestionIndex];
+            const correctIndex = currentQuestion.correta;
+            const allButtons = optionsContainer.querySelectorAll('.option-btn');
+
+            allButtons.forEach(btn => btn.disabled = true);
+
+            const isCorrect = (selectedIndex === correctIndex);
+
+            if (isCorrect) {
+                selectedButton.classList.add('correct');
+                score++;
+            } else {
+                selectedButton.classList.add('wrong');
+                allButtons[correctIndex].classList.add('correct');
+            }
+
+            setTimeout(() => {
+                const respostaCorretaFormatada = `${letras[correctIndex]} ${currentQuestion.opcoes[correctIndex]}`;
+                showModal(isCorrect, respostaCorretaFormatada, currentQuestion.explicacao);
+            }, 1000);
+        }
+
+        function showModal(isCorrect, correctAnswerText, explicacao) {
+            if (isCorrect) {
+                modalTitle.textContent = "Acertou! ✅";
+                modalTitle.className = "modal-title text-success";
+                modalFeedback.innerHTML = `Mandou bem! A resposta é mesmo:<br><strong style="color: #F5F5F5">${correctAnswerText}</strong>`;
+            } else {
+                modalTitle.textContent = "Errou ❌";
+                modalTitle.className = "modal-title text-danger";
+                modalFeedback.innerHTML = `Poxa, não foi dessa vez.<br>A resposta correta era:<br><strong style="color: #F5F5F5">${correctAnswerText}</strong>`;
+            }
+
+            modalExplanation.innerHTML = `💡 <strong>Explicação:</strong> ${explicacao}`;
+
+            const nextBtn = document.getElementById('next-btn');
+            if (currentQuestionIndex === perguntas.length - 1) {
+                nextBtn.textContent = "Ver Resultados";
+            } else {
+                nextBtn.textContent = "Próxima Questão";
+            }
+
+            feedbackModal.classList.add('active');
+        }
+
+        function nextQuestion() {
+            feedbackModal.classList.remove('active');
+            currentQuestionIndex++;
+
+            if (currentQuestionIndex < perguntas.length) {
+                setTimeout(loadQuestion, 300); 
+            } else {
+                setTimeout(showFinalResults, 300);
+            }
+        }
+
+        function showFinalResults() {
+            quizScreen.classList.remove('active');
+            resultScreen.classList.add('active');
+
+            const scoreText = document.getElementById('score-text');
+            const scoreFeedback = document.getElementById('score-feedback');
+            
+            scoreText.textContent = `${score}/${perguntas.length}`;
+
+            const percentage = score / perguntas.length;
+            if (percentage >= 0.9) {
+                scoreFeedback.textContent = "Incrível! Você dominou o assunto de verdade!";
+            } else if (percentage >= 0.6) {
+                scoreFeedback.textContent = "Muito bom! Seus conhecimentos estão bem afiados.";
+            } else {
+                scoreFeedback.textContent = "Continue praticando! Anatomia e fisiologia exigem dedicação.";
+            }
+        }
+
+        function restartQuiz() {
+            initQuiz();
+        }
+
+        initQuiz();
+    </script>
+</body>
+</html>
